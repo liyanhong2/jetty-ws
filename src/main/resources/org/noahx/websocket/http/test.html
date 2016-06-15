@@ -1,0 +1,156 @@
+<html>
+<head>
+    <title></title>
+
+    <script type="text/javascript" src="swfobject.js"></script>
+    <script type="text/javascript" src="web_socket.js"></script>
+
+    <script type="text/javascript" src="jquery-1.7.2.min.js"></script>
+    <script src="hc/highcharts.js"></script>
+    <script src="hc/modules/exporting.js"></script>
+
+
+</head>
+<body>
+
+<script type="text/javascript">
+
+    var host = window.location.host.split(":")[0];
+
+
+    WEB_SOCKET_SWF_LOCATION = "WebSocketMain.swf";
+    WEB_SOCKET_DEBUG = false;
+    try {
+        WebSocket.loadFlashPolicyFile("xmlsocket://" + host + ":10843");
+    } catch (e) {
+    }
+
+    var ws;
+
+    function init(series) {
+
+        ws = new WebSocket("ws://" + host + ":8085/");
+
+        ws.onopen = function () {
+            output("onOpen");
+        };
+        ws.onmessage = function (e) {
+            var dStr = e.data;
+            outputmem(dStr);
+
+            var x = (new Date()).getTime(), // current time
+                    y = parseInt(dStr);
+            series.addPoint([x, y], true, true);
+        };
+        ws.onclose = function () {
+            output("onClose");
+        };
+        ws.onerror = function () {
+            output("onError");
+        };
+
+    }
+
+    function outputmem(str) {
+        var mem = document.getElementById("mem");
+        mem.innerHTML = str;
+    }
+
+    function output(str) {
+
+        var log = document.getElementById("log");
+
+        var escaped = str.replace(/&/, "&amp;").replace(/</, "&lt;").
+                replace(/>/, "&gt;").replace(/"/, "&quot;"); // "
+        log.innerHTML = escaped + "<br>" + log.innerHTML;
+    }
+
+    $(function () {
+        $(document).ready(function () {
+            Highcharts.setOptions({
+                global:{
+                    useUTC:false
+                }
+            });
+
+            var chart;
+            chart = new Highcharts.Chart({
+                chart:{
+                    renderTo:'container',
+                    type:'spline',
+                    marginRight:10,
+                    events:{
+                        load:function () {
+
+                            // set up the updating of the chart each second
+                            var series = this.series[0];
+                            init(series);
+                        }
+                    }
+                },
+                title:{
+                    text:'WebSocket random data'
+                },
+                xAxis:{
+                    type:'datetime',
+                    tickPixelInterval:150
+                },
+                yAxis:{
+                    title:{
+                        text:'Value'
+                    },
+                    plotLines:[
+                        {
+                            value:0,
+                            width:1,
+                            color:'#808080'
+                        }
+                    ]
+                },
+                tooltip:{
+                    formatter:function () {
+                        return '<b>' + this.series.name + '</b><br/>' +
+                                Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                                Highcharts.numberFormat(this.y, 2);
+                    }
+                },
+                legend:{
+                    enabled:false
+                },
+                exporting:{
+                    enabled:false
+                },
+                series:[
+                    {
+                        name:'Zero data',
+                        data:(function () {
+                            var data = [],
+                                    time = (new Date()).getTime(),
+                                    i;
+
+                            for (i = -19; i <= 0; i++) {
+                                data.push({
+                                    x:time + i * 1000,
+                                    y:0
+                                });
+                            }
+                            return data;
+                        })()
+                    }
+                ]
+            });
+        });
+
+    });
+
+</script>
+
+<div id="mem"></div>
+
+<div id="log"></div>
+
+
+<div id="container" style="min-width: 400px; height: 400px; margin: 0 auto"></div>
+
+</body>
+</html>
